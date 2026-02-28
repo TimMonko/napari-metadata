@@ -1,4 +1,6 @@
-"""Unified collapsible section container supporting both vertical and horizontal orientations."""
+"""Collapsible section containers and scroll-area helpers."""
+
+from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal
 
@@ -16,7 +18,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from napari_metadata._protocols import MetadataWidgetAPI
+from napari_metadata.widgets._protocols import MetadataWidgetAPI
 
 if TYPE_CHECKING:
     import napari.viewer
@@ -29,17 +31,17 @@ class CollapsibleSectionContainer(QWidget):
     ----------
     viewer : napari.viewer.Viewer
         The napari viewer instance.
-    container_nake : str
+    container_name : str
         The name of the container.
+    main_widget : MetadataWidgetAPI
+        The parent metadata widget.
     orientation : {'vertical', 'horizontal'}
-        The orientation of the container. Vertical containers expand downward
-        with horizontal scrolling. Horizontal containers expand rightward with
-        vertical scrolling.
+        The orientation of the container.
     """
 
     def __init__(
         self,
-        viewer: 'napari.viewer.Viewer',
+        viewer: napari.viewer.Viewer,
         container_name: str,
         main_widget: MetadataWidgetAPI,
         orientation: Literal['vertical', 'horizontal'] = 'vertical',
@@ -82,7 +84,6 @@ class CollapsibleSectionContainer(QWidget):
             self._expanding_area.setHorizontalScrollBarPolicy(
                 Qt.ScrollBarPolicy.ScrollBarAsNeeded
             )
-            # Disable wheel scrolling on horizontal scrollbar for vertical containers
             self.disable_horizontal_scrolling_wheel_filter = (
                 DisableWheelScrollingFilter()
             )
@@ -94,7 +95,7 @@ class CollapsibleSectionContainer(QWidget):
             self._expanding_area.setSizePolicy(
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed
             )
-        else:  # horizontal
+        else:
             self._expanding_area.setVerticalScrollBarPolicy(
                 Qt.ScrollBarPolicy.ScrollBarAsNeeded
             )
@@ -108,7 +109,8 @@ class CollapsibleSectionContainer(QWidget):
 
         self._expanding_area.setVisible(False)
         self._layout.addWidget(
-            self._expanding_area, 0 if orientation == 'vertical' else 1
+            self._expanding_area,
+            0 if orientation == 'vertical' else 1,
         )
 
     def _expanding_area_set_visible(self, checked: bool) -> None:
@@ -116,19 +118,17 @@ class CollapsibleSectionContainer(QWidget):
         self._expanding_area.setVisible(checked)
         self._sync_body_size()
 
-        if (
-            self._container_name == 'vertical_inheritance'
-            or self._container_name == 'horizontal_inheritance'
+        if self._container_name in (
+            'vertical_inheritance',
+            'horizontal_inheritance',
         ):
             self._main_widget._resolve_show_inheritance_checkboxes(
                 self._orientation, checked
             )
 
         # Update button text
-        if not checked:
-            self._button.setText('▶ ' + self._set_text)
-        else:
-            self._button.setText('▼ ' + self._set_text)
+        prefix = '▼ ' if checked else '▶ '
+        self._button.setText(prefix + self._set_text)
 
         self._expanding_area.updateGeometry()
         self.updateGeometry()
@@ -156,7 +156,7 @@ class CollapsibleSectionContainer(QWidget):
             self._expanding_area.setFixedHeight(
                 widget_height + scroll_bar_height + frame
             )
-        else:  # horizontal
+        else:
             widget_width = current_widget.sizeHint().width()
             v_scrollbar = self._expanding_area.verticalScrollBar()
             scroll_bar_width = (
@@ -186,11 +186,11 @@ class CollapsibleSectionContainer(QWidget):
 
         if self._orientation == 'vertical':
             setting_widget.setSizePolicy(
-                QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred
+                QSizePolicy.Policy.Preferred,
+                QSizePolicy.Policy.Preferred,
             )
             self._expanding_area.setWidget(setting_widget)
-        else:  # horizontal
-            # Horizontal containers need a wrapper with stretch
+        else:
             wrapper = QWidget()
             wrapper_layout = QVBoxLayout(wrapper)
             wrapper_layout.setContentsMargins(0, 0, 0, 0)
@@ -222,10 +222,7 @@ class CollapsibleSectionContainer(QWidget):
 
 
 class RotatedButton(QPushButton):
-    """A button that renders text rotated 90 degrees counterclockwise.
-
-    Used for horizontal collapsible sections to save space.
-    """
+    """A button whose text is rotated 90° counter-clockwise."""
 
     def __init__(self, text, parent=None):
         super().__init__(text, parent)
@@ -253,6 +250,9 @@ class RotatedButton(QPushButton):
 
 
 class HorizontalOnlyOuterScrollArea(QScrollArea):
+    """Scroll area that only scrolls horizontally; vertical space
+    is pinned to the viewport height."""
+
     def resizeEvent(self, a0):
         super().resizeEvent(a0)
         w = self.widget()
@@ -264,7 +264,7 @@ class HorizontalOnlyOuterScrollArea(QScrollArea):
 
 
 class DisableWheelScrollingFilter(QObject):
-    """Event filter to disable mouse wheel scrolling on scroll bars."""
+    """Event filter that suppresses mouse-wheel events on scroll bars."""
 
     def eventFilter(self, a0, a1):
         return bool(a1 is not None and a1.type() == QEvent.Type.Wheel)

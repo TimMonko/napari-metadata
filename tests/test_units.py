@@ -1,9 +1,9 @@
-"""Tests for _UnitConfig and AxisType."""
+"""Tests for _UnitConfig and AxisUnitEnum."""
 
 import pint
 import pytest
 
-from napari_metadata._axis_units import AxisUnitEnum, _UnitConfig
+from napari_metadata.units import AxisUnitEnum, _UnitConfig
 
 
 class TestUnitConfig:

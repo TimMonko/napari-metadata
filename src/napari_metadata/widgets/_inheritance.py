@@ -1,3 +1,7 @@
+"""Template-based metadata inheritance widget."""
+
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from qtpy.QtCore import QSignalBlocker, Qt
@@ -10,7 +14,7 @@ from qtpy.QtWidgets import (
     QWidget,
 )
 
-from napari_metadata._model import (
+from napari_metadata.layer_utils import (
     connect_callback_to_layer_name_changed,
     connect_callback_to_layer_selection_events,
     connect_callback_to_list_events,
@@ -20,7 +24,7 @@ from napari_metadata._model import (
     get_layers_list,
     resolve_layer,
 )
-from napari_metadata._protocols import MetadataWidgetAPI
+from napari_metadata.widgets._protocols import MetadataWidgetAPI
 
 if TYPE_CHECKING:
     from napari.components import ViewerModel
@@ -30,9 +34,12 @@ BLOCKS_SPACING = 20
 
 
 class InheritanceWidget(QWidget):
+    """Widget that allows propagating axis metadata from a template layer
+    to the currently active layer."""
+
     def __init__(
         self,
-        napari_viewer: 'ViewerModel',
+        napari_viewer: ViewerModel,
         metadata_widget: MetadataWidgetAPI,
         parent: QWidget | None = None,
     ):
@@ -94,12 +101,14 @@ class InheritanceWidget(QWidget):
 
         self._update_layers_combobox_callback = self._update_layers_combobox
         connect_callback_to_list_events(
-            self._napari_viewer, self._update_layers_combobox_callback
+            self._napari_viewer,
+            self._update_layers_combobox_callback,
         )
 
         self._update_inheriting_layer_callback = self._update_inheriting_label
         connect_callback_to_layer_selection_events(
-            self._napari_viewer, self._update_inheriting_layer_callback
+            self._napari_viewer,
+            self._update_inheriting_layer_callback,
         )
 
         self._layer_selection_changed_callback = (
@@ -107,7 +116,8 @@ class InheritanceWidget(QWidget):
         )
         self._layer_name_changed_callback = self._on_layer_name_changed
         connect_callback_to_layer_selection_events(
-            self._napari_viewer, self._layer_selection_changed_callback
+            self._napari_viewer,
+            self._layer_selection_changed_callback,
         )
 
         self._update_layers_combobox()
@@ -128,10 +138,12 @@ class InheritanceWidget(QWidget):
                 )
             if (
                 not self._template_combobox.findData(
-                    self._template_layer, Qt.ItemDataRole.UserRole
+                    self._template_layer,
+                    Qt.ItemDataRole.UserRole,
                 )
                 or self._template_combobox.findData(
-                    self._template_layer, Qt.ItemDataRole.UserRole
+                    self._template_layer,
+                    Qt.ItemDataRole.UserRole,
                 )
                 == -1
             ):
@@ -144,7 +156,8 @@ class InheritanceWidget(QWidget):
                 return
             self._template_combobox.setCurrentIndex(
                 self._template_combobox.findData(
-                    self._template_layer, Qt.ItemDataRole.UserRole
+                    self._template_layer,
+                    Qt.ItemDataRole.UserRole,
                 )
             )
 
@@ -222,9 +235,11 @@ class InheritanceWidget(QWidget):
 
     def closeEvent(self, a0):
         disconnect_callback_to_list_events(
-            self._napari_viewer, self._update_layers_combobox_callback
+            self._napari_viewer,
+            self._update_layers_combobox_callback,
         )
         disconnect_callback_to_layer_selection_events(
-            self._napari_viewer, self._update_inheriting_layer_callback
+            self._napari_viewer,
+            self._update_inheriting_layer_callback,
         )
         super().closeEvent(a0)

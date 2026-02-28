@@ -1,14 +1,10 @@
 """Axis classification and curated unit configuration for napari-metadata.
 
-``AxisType`` is an ``Enum`` whose members classify axes as SPACE, TIME, or
+``AxisUnitEnum`` is an ``Enum`` whose members classify axes as SPACE, TIME, or
 STRING.  SPACE and TIME members carry a ``_UnitConfig`` dataclass as their
 ``.value``, encoding the exact set of units shown in the UI and a sensible
 default.  STRING axes take arbitrary pint-parseable text; their ``.value``
 is ``None``.
-
-The ``_UnitConfig`` dataclass also provides ``pint_units()``, so callers that
-need ``pint.Unit`` objects can get them without importing pint at the top of
-their own module.
 """
 
 from __future__ import annotations
@@ -19,14 +15,19 @@ from enum import Enum
 import pint
 from typing_extensions import Self
 
+__all__ = ['AxisUnitEnum']
+
 
 @dataclass(frozen=True)
 class _UnitConfig:
     """Curated unit list and sensible default for one axis category.
 
-    ``units`` is the ordered sequence shown in the UI dropdown.
-    ``default`` is the fallback when no unit has been set yet.
-    Both carry pint-registered names so ``pint_units()`` always succeeds.
+    Parameters
+    ----------
+    units : tuple[str, ...]
+        Ordered sequence of unit names shown in the UI dropdown.
+    default : str
+        Fallback unit when none has been set yet.
     """
 
     units: tuple[str, ...]
@@ -42,11 +43,11 @@ class AxisUnitEnum(Enum):
     """Classifies an axis as spatial, temporal, or free-form string.
 
     SPACE and TIME carry a ``_UnitConfig`` as ``.value``; access the curated
-    unit list with ``axis_type.value.units``, the default with
-    ``axis_type.value.default``, and pint objects with
-    ``axis_type.value.pint_units()``.
+    unit list with ``member.value.units``, the default with
+    ``member.value.default``, and pint objects with
+    ``member.value.pint_units()``.
 
-    STRING axes accept arbitrary text; ``axis_type.value`` is ``None``.
+    STRING axes accept arbitrary text; ``member.value`` is ``None``.
     """
 
     SPACE = _UnitConfig(
