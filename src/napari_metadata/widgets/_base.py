@@ -306,7 +306,7 @@ class FileComponentBase(ComponentBase):
         parent_widget: QWidget,
     ) -> None:
         super().__init__(viewer, parent_widget)
-        self._display_label = QLabel('None selected', parent=parent_widget)
+        self._display_label = QLabel('', parent=parent_widget)
         self._display_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
 
     # ------------------------------------------------------------------
@@ -339,7 +339,7 @@ class FileComponentBase(ComponentBase):
         ``_get_display_text``.  Override for custom widget types.
         """
         if layer is None:
-            self._display_label.setText('None selected')
+            self._display_label.setText('')
         else:
             self._display_label.setText(self._get_display_text(layer))
 

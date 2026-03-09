@@ -261,7 +261,7 @@ class TestFileComponentBaseLifecycle:
 
         component.load_entries()
 
-        assert component.value_widget.text() == 'None selected'
+        assert component.value_widget.text() == ''
         assert len(component.get_text_calls) == 0
 
     def test_load_entries_updates_display_for_layer(

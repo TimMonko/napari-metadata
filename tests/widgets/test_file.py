@@ -141,7 +141,7 @@ class TestSourcePath:
 
         component.load_entries()
 
-        assert component.value_widget.text() == 'None selected'
+        assert component.value_widget.text() == ''
 
     def test_line_edit_is_read_only(
         self, viewer_model: ViewerModel, parent_widget: QWidget
