@@ -47,7 +47,7 @@ class TestLayerShape:
 
         component.load_entries()
 
-        assert component.value_widget.text() == 'None selected'
+        assert component.value_widget.text() == ''
 
 
 class TestLayerDataType:
@@ -168,7 +168,7 @@ class TestFileGeneralMetadata:
     ):
         meta = FileGeneralMetadata(viewer_model, parent_widget)
 
-        assert len(meta.components) == 5
+        assert len(meta.components) == 9
 
     def test_components_in_display_order(
         self, viewer_model: ViewerModel, parent_widget: QWidget
@@ -189,7 +189,7 @@ class TestFileGeneralMetadata:
         components = meta.components
         components.clear()
 
-        assert len(meta.components) == 5
+        assert len(meta.components) == 9
 
     def test_all_components_load_entries(
         self, viewer_model: ViewerModel, parent_widget: QWidget
