@@ -17,7 +17,6 @@ from napari_metadata.layer_utils import (
     get_layer_data_shape,
     get_layer_dimensions,
     get_layer_source_metadata,
-    get_layer_source_path,
     get_layers_list,
     resolve_layer,
     set_axes_labels,
@@ -269,23 +268,6 @@ class TestGetLayerDataDtype:
         layer = viewer_model.add_shapes(shape_data, shape_type='polygon')
         dtype = get_layer_data_dtype(layer)
         assert dtype == 'float32'
-
-
-class TestGetLayerSourcePath:
-    def test_none_layer(self):
-        assert get_layer_source_path(None) == ''
-
-    def test_in_memory_layer_has_no_path(self, viewer_model):
-        layer = viewer_model.add_image(np.zeros((4, 3)))
-        path = get_layer_source_path(layer)
-        assert path == '' or isinstance(path, str)
-
-    def test_layer_with_path(self, viewer_model):
-        from napari.layers._source import Source
-
-        layer = viewer_model.add_image(np.zeros((4, 3)))
-        layer._source = Source(path='/images/test.tif')
-        assert get_layer_source_path(layer) == '/images/test.tif'
 
 
 class TestGetLayerSourceMetadata:

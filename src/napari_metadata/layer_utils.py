@@ -144,13 +144,6 @@ def get_layer_data_dtype(layer: 'Layer | None') -> str:
     return 'Unknown'
 
 
-def get_layer_source_path(layer: 'Layer | None') -> str:
-    """Get the source path of the layer if available."""
-    if layer is None or layer.source.path is None:
-        return ''
-    return layer.source.path
-
-
 def get_layer_source_metadata(layer: 'Layer | None') -> dict[str, str]:
     """Get all non-None source attributes of the layer as string representations.
 
