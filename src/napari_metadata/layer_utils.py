@@ -151,6 +151,24 @@ def get_layer_source_path(layer: 'Layer | None') -> str:
     return layer.source.path
 
 
+def get_layer_source_metadata(layer: 'Layer | None') -> dict[str, str]:
+    """Get all non-None source attributes of the layer as string representations.
+
+    Returns a dict mapping attribute name to display string for every
+    ``source`` field that is not ``None``.  Fields: ``path``,
+    ``reader_plugin``, ``sample``, ``widget``, ``parent``.
+    """
+    if layer is None:
+        return {}
+    source = layer.source
+    result: dict[str, str] = {}
+    for field in ('path', 'reader_plugin', 'sample', 'widget', 'parent'):
+        value = getattr(source, field, None)
+        if value is not None:
+            result[field] = str(value)
+    return result
+
+
 def get_layer_dimensions(layer: 'Layer | None') -> int:
     """Get the number of dimensions in the layer."""
     return layer.ndim if layer is not None else 0

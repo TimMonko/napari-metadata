@@ -323,6 +323,11 @@ class FileComponentBase(ComponentBase):
         active_layer = resolve_layer(self._napari_viewer, layer)
         self._update_display(active_layer)
 
+    def set_visible(self, visible: bool) -> None:
+        """Show or hide both the header label and value widget for this component."""
+        self.component_label.setVisible(visible)
+        self.value_widget.setVisible(visible)
+
     # ------------------------------------------------------------------
     # Template methods
     # ------------------------------------------------------------------
