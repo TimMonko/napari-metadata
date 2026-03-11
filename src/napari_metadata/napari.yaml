@@ -1,5 +1,5 @@
 name: napari-metadata
-display_name: Layer metadata
+display_name: napari metadata
 contributions:
   commands:
     - id: napari-metadata.make_metadata_qwidget
