@@ -65,8 +65,11 @@ class _ContentScrollArea(QScrollArea):
         hint = widget.sizeHint()
         frame = 2 * self.frameWidth()
         if self._orientation == 'vertical':
+            # Minimum width (parent stretches horizontally) but preferred
+            # height (avoid inner scrolling when possible).
             min_hint = widget.minimumSizeHint()
             return QSize(min_hint.width() + frame, hint.height() + frame)
+        # Horizontal: preferred width; zero height (parent controls it).
         return QSize(hint.width() + frame, 0)
 
     def minimumSizeHint(self) -> QSize:
