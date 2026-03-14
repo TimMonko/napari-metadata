@@ -170,6 +170,17 @@ class TestSetContentWidget:
         assert w._expanding_area.sizeHint().width() == expected
         assert w._expanding_area.sizeHint().height() == 0
 
+    @pytest.mark.parametrize('orientation', ORIENTATIONS)
+    def test_content_area_falls_back_to_base_hints_without_widget(
+        self, qtbot, orientation
+    ):
+        w = CollapsibleSectionContainer(None, 'T', orientation)
+        qtbot.addWidget(w)
+
+        assert w._expanding_area.widget() is None
+        assert w._expanding_area.sizeHint().isValid()
+        assert w._expanding_area.minimumSizeHint().isValid()
+
 
 class TestScrollPolicies:
     def test_vertical_sections_allow_visible_vertical_scrolling(self, qtbot):
@@ -205,6 +216,28 @@ class TestScrollPolicies:
 
         assert w._button.width() >= parent.width() - 20
 
+    def test_horizontal_width_setter_is_ignored_for_vertical_sections(
+        self, qtbot
+    ):
+        w = CollapsibleSectionContainer(None, 'T', 'vertical')
+        qtbot.addWidget(w)
+
+        before = w.maximumWidth()
+        w.set_horizontal_section_width(200)
+
+        assert w.maximumWidth() == before
+
+    def test_vertical_height_setter_is_ignored_for_horizontal_sections(
+        self, qtbot
+    ):
+        w = CollapsibleSectionContainer(None, 'T', 'horizontal')
+        qtbot.addWidget(w)
+
+        before = w.maximumHeight()
+        w.set_vertical_section_height(200)
+
+        assert w.maximumHeight() == before
+
 
 class TestRotatedButton:
     def test_size_hint_is_transposed(self, qtbot):
@@ -224,6 +257,20 @@ class TestRotatedButton:
 
 
 class TestHorizontalOnlyOuterScrollArea:
+    def test_resize_event_pins_child_height_to_viewport(self, qtbot):
+        from qtpy.QtWidgets import QWidget
+
+        area = HorizontalOnlyOuterScrollArea()
+        content = QWidget()
+        area.setWidget(content)
+        area.resize(240, 160)
+        qtbot.addWidget(area)
+
+        area.show()
+        qtbot.waitExposed(area)
+
+        assert content.height() == area.viewport().height()
+
     def test_wheel_event_is_ignored(self, qtbot):
         """Wheel event must be flagged as ignored (propagated to parent)."""
         from qtpy.QtCore import QPoint, QPointF, Qt
