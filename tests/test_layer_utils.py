@@ -269,6 +269,18 @@ class TestGetLayerDataDtype:
         dtype = get_layer_data_dtype(layer)
         assert dtype == 'float32'
 
+    def test_non_native_endian_dtype_is_human_readable(self, viewer_model):
+        """Non-native endian dtype like '>u2' should display as 'uint16', not '>u2'."""
+        data = np.zeros((4, 4), dtype=np.dtype('>u2'))
+        layer = viewer_model.add_image(data)
+        assert get_layer_data_dtype(layer) == 'uint16'
+
+    def test_little_endian_float64_is_human_readable(self, viewer_model):
+        """Little-endian dtype '<f8' should display as 'float64'."""
+        data = np.zeros((3, 3), dtype=np.dtype('<f8'))
+        layer = viewer_model.add_image(data)
+        assert get_layer_data_dtype(layer) == 'float64'
+
 
 class TestGetLayerSourcePath:
     def test_none_layer(self):
