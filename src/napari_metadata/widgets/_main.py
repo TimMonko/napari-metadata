@@ -44,8 +44,6 @@ from napari_metadata.widgets._file import FileGeneralMetadata
 from napari_metadata.widgets._inheritance import InheritanceWidget
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from napari.components import ViewerModel
     from napari.layers import Layer
 
@@ -55,6 +53,67 @@ _NO_LAYER_PAGE = 1
 #: Spacing (px) between collapsible sections inside the outer scroll area.
 #: Used both in the sections QLayout and in the manual size allocator.
 _SECTIONS_SPACING = 3
+
+
+def _allocate_section_extents(
+    *,
+    expanded: list[bool],
+    collapsed_extents: list[int],
+    preferred_extents: list[int],
+    available: int,
+    spacing: int,
+) -> list[int]:
+    """Distribute available pixels across collapsed and expanded sections.
+
+    Collapsed sections always keep their collapsed extent. Expanded sections
+    share the remaining pixels with a water-filling strategy so smaller
+    preferred extents are satisfied first.
+    """
+    extents = collapsed_extents.copy()
+    expanded_indices = [
+        index for index, is_expanded in enumerate(expanded) if is_expanded
+    ]
+    if not expanded_indices:
+        return extents
+
+    collapsed_total = sum(
+        extent
+        for extent, is_expanded in zip(
+            collapsed_extents, expanded, strict=True
+        )
+        if not is_expanded
+    )
+    usable = max(available - spacing - collapsed_total, 0)
+
+    preferred_by_index = {
+        index: max(preferred_extents[index], collapsed_extents[index])
+        for index in expanded_indices
+    }
+    minimum_total = sum(collapsed_extents[index] for index in expanded_indices)
+    if usable <= minimum_total:
+        return extents
+
+    preferred_total = sum(
+        preferred_by_index[index] for index in expanded_indices
+    )
+    if usable >= preferred_total:
+        for index in expanded_indices:
+            extents[index] = preferred_by_index[index]
+        return extents
+
+    remaining = usable
+    for offset, index in enumerate(
+        sorted(expanded_indices, key=lambda item: preferred_by_index[item])
+    ):
+        share = remaining // (len(expanded_indices) - offset)
+        extent = max(
+            collapsed_extents[index],
+            min(preferred_by_index[index], share),
+        )
+        extents[index] = extent
+        remaining -= extent
+
+    return extents
 
 
 class MetadataWidget(QWidget):
@@ -158,9 +217,13 @@ class MetadataWidget(QWidget):
         self._update_section_sizes()
 
     def eventFilter(self, a0, a1) -> bool:
+        viewport = (
+            self._scroll_area.viewport()
+            if self._scroll_area is not None
+            else None
+        )
         if (
-            self._scroll_area is not None
-            and a0 is self._scroll_area.viewport()
+            a0 is viewport
             and a1 is not None
             and a1.type()
             in (
@@ -171,64 +234,6 @@ class MetadataWidget(QWidget):
         ):
             self._update_section_sizes()
         return super().eventFilter(a0, a1)
-
-    def _allocate_section_extent(
-        self,
-        *,
-        sections: list[CollapsibleSectionContainer],
-        available: int,
-        spacing: int,
-        collapsed_hint: Callable[[CollapsibleSectionContainer], int],
-        preferred_hint: Callable[[CollapsibleSectionContainer], int],
-        apply_extent: Callable[[CollapsibleSectionContainer, int], None],
-    ) -> None:
-        """Distribute *available* pixels among *sections*.
-
-        Qt's layout managers cannot negotiate optimal sizes across nested
-        scroll-area boundaries, so we compute allocations manually:
-        collapsed sections get their collapsed size; expanded sections
-        share the remainder via water-filling (smaller preferred sizes
-        are satisfied first).
-        """
-        collapsed_total = 0
-        expanded: list[CollapsibleSectionContainer] = []
-        preferred: dict[CollapsibleSectionContainer, int] = {}
-        minimum: dict[CollapsibleSectionContainer, int] = {}
-
-        for section in sections:
-            collapsed = collapsed_hint(section)
-            if section.isExpanded():
-                expanded.append(section)
-                preferred[section] = max(preferred_hint(section), collapsed)
-                minimum[section] = collapsed
-            else:
-                collapsed_total += collapsed
-                apply_extent(section, collapsed)
-
-        if not expanded:
-            return
-
-        usable = max(available - spacing - collapsed_total, 0)
-
-        if usable <= sum(minimum.values()):
-            for section in expanded:
-                apply_extent(section, minimum[section])
-            return
-
-        if usable >= sum(preferred.values()):
-            for section in expanded:
-                apply_extent(section, preferred[section])
-            return
-
-        # Water-fill: sort by preferred ascending so smaller sections
-        # reach their preferred size before larger ones are capped.
-        by_pref = sorted(expanded, key=lambda s: preferred[s])
-        remaining = usable
-        for i, section in enumerate(by_pref):
-            share = remaining // (len(by_pref) - i)
-            extent = max(minimum[section], min(preferred[section], share))
-            apply_extent(section, extent)
-            remaining -= extent
 
     def sizeHint(self):
         if self._stacked_layout.currentIndex() == _CONTENT_PAGE:
@@ -298,6 +303,7 @@ class MetadataWidget(QWidget):
     def _refresh_page(self) -> None:
         """Show the correct page and rebuild content if a layer is active."""
         if self._selected_layer is None:
+            self._teardown_content()
             self._stacked_layout.setCurrentIndex(_NO_LAYER_PAGE)
             self._current_orientation = None
             return
@@ -337,17 +343,7 @@ class MetadataWidget(QWidget):
             else False
         )
 
-        # Detach persistent widgets so they survive container deletion
-        self._detach_component_widgets()
-
-        # Remove old scroll area
-        if self._scroll_area is not None:
-            viewport = self._scroll_area.viewport()
-            if viewport is not None:
-                viewport.removeEventFilter(self)
-            self._content_page_layout.removeWidget(self._scroll_area)
-            self._scroll_area.deleteLater()
-            self._scroll_area = None
+        self._teardown_content()
 
         # Create orientation-appropriate scroll area
         if is_vertical:
@@ -366,7 +362,9 @@ class MetadataWidget(QWidget):
             )
             scroll.setWidgetResizable(True)
         self._scroll_area = scroll
-        scroll.viewport().installEventFilter(self)
+        viewport = scroll.viewport()
+        if viewport is not None:
+            viewport.installEventFilter(self)
 
         # Content inside the scroll area
         scroll_content = QWidget(scroll)
@@ -418,74 +416,102 @@ class MetadataWidget(QWidget):
             parent.updateGeometry()
 
     def _update_section_sizes(self) -> None:
-        if self._current_orientation == 'horizontal':
-            self._update_horizontal_section_widths()
-        elif self._current_orientation == 'vertical':
-            self._update_vertical_section_heights()
+        if self._current_orientation is None:
+            return
+        self._update_section_extents(self._current_orientation)
 
     def _update_horizontal_section_widths(self) -> None:
-        if self._current_orientation != 'horizontal':
-            return
-        if self._scroll_area is None:
-            return
-        if (
-            self._file_section is None
-            or self._axis_section is None
-            or self._inheritance_section is None
-        ):
-            return
-
-        viewport_width = self._scroll_area.viewport().width()
-        if viewport_width <= 0:
-            return
-
-        sections = [
-            self._file_section,
-            self._axis_section,
-            self._inheritance_section,
-        ]
-        self._allocate_section_extent(
-            sections=sections,
-            available=viewport_width,
-            spacing=_SECTIONS_SPACING * max(len(sections) - 1, 0),
-            collapsed_hint=lambda section: section.collapsed_width_hint(),
-            preferred_hint=lambda section: section.sizeHint().width(),
-            apply_extent=lambda section, extent: (
-                section.set_horizontal_section_width(extent)
-            ),
-        )
+        self._update_section_extents('horizontal')
 
     def _update_vertical_section_heights(self) -> None:
-        if self._current_orientation != 'vertical':
+        self._update_section_extents('vertical')
+
+    def _update_section_extents(self, orientation: Orientation) -> None:
+        if (
+            self._current_orientation != orientation
+            or self._scroll_area is None
+        ):
             return
-        if self._scroll_area is None:
+
+        sections = self._get_sections()
+        if sections is None:
             return
+
+        viewport = self._scroll_area.viewport()
+        if viewport is None:
+            return
+
+        if orientation == 'horizontal':
+            available = viewport.width()
+            collapsed_extents = [
+                section.collapsed_width_hint() for section in sections
+            ]
+            preferred_extents = [
+                section.sizeHint().width() for section in sections
+            ]
+        else:
+            available = viewport.height()
+            collapsed_extents = [
+                section.collapsed_height_hint() for section in sections
+            ]
+            preferred_extents = [
+                section.sizeHint().height() for section in sections
+            ]
+
+        if available <= 0:
+            return
+
+        extents = _allocate_section_extents(
+            expanded=[section.isExpanded() for section in sections],
+            collapsed_extents=collapsed_extents,
+            preferred_extents=preferred_extents,
+            available=available,
+            spacing=_SECTIONS_SPACING * max(len(sections) - 1, 0),
+        )
+        for section, extent in zip(sections, extents, strict=True):
+            if orientation == 'horizontal':
+                section.set_horizontal_section_width(extent)
+            else:
+                section.set_vertical_section_height(extent)
+
+    def _get_sections(
+        self,
+    ) -> (
+        tuple[
+            CollapsibleSectionContainer,
+            CollapsibleSectionContainer,
+            CollapsibleSectionContainer,
+        ]
+        | None
+    ):
         if (
             self._file_section is None
             or self._axis_section is None
             or self._inheritance_section is None
         ):
-            return
-
-        viewport_height = self._scroll_area.viewport().height()
-        if viewport_height <= 0:
-            return
-
-        sections = [
+            return None
+        return (
             self._file_section,
             self._axis_section,
             self._inheritance_section,
-        ]
-        self._allocate_section_extent(
-            sections=sections,
-            available=viewport_height,
-            spacing=_SECTIONS_SPACING * max(len(sections) - 1, 0),
-            collapsed_hint=lambda section: section.collapsed_height_hint(),
-            preferred_hint=lambda section: section.sizeHint().height(),
-            apply_extent=lambda section, extent: (
-                section.set_vertical_section_height(extent)
-            ),
         )
+
+    def _teardown_content(self) -> None:
+        self._detach_component_widgets()
+        self._remove_scroll_area()
+        self._file_section = None
+        self._axis_section = None
+        self._inheritance_section = None
+
+    def _remove_scroll_area(self) -> None:
+        if self._scroll_area is None:
+            return
+        viewport = self._scroll_area.viewport()
+        if viewport is not None:
+            viewport.removeEventFilter(self)
+        self._content_page_layout.removeWidget(self._scroll_area)
+        self._scroll_area.deleteLater()
+        self._scroll_area = None
 
     def _detach_component_widgets(self) -> None:
         """Reparent all persistent component widgets back to *self*.
@@ -511,6 +537,10 @@ class MetadataWidget(QWidget):
         self._axis_metadata_instance.set_checkboxes_visible(checked)
         self._update_section_sizes()
 
+    def _on_section_toggled(self, _checked: bool) -> None:
+        """Recompute section sizes after any section expands or collapses."""
+        self._update_section_sizes()
+
     # ------------------------------------------------------------------
     # Section builders
     # ------------------------------------------------------------------
@@ -523,7 +553,7 @@ class MetadataWidget(QWidget):
             self,
             'File metadata',
             orientation=orientation,
-            on_toggle=lambda _: self._update_section_sizes(),
+            on_toggle=self._on_section_toggled,
         )
         container = QWidget(self)
         grid = QGridLayout(container)
@@ -539,7 +569,7 @@ class MetadataWidget(QWidget):
             self,
             'Axes metadata',
             orientation=orientation,
-            on_toggle=lambda _: self._update_section_sizes(),
+            on_toggle=self._on_section_toggled,
         )
         container = QWidget(self)
         grid = QGridLayout(container)
@@ -733,7 +763,9 @@ def _populate_axis_grid_vertical(
             grid.setColumnMinimumWidth(c, 0)
         grid.setColumnStretch(c, 0)
     grid.setColumnStretch(max_cols, 1)
-    grid.parentWidget().updateGeometry()
+    parent = grid.parentWidget()
+    if parent is not None:
+        parent.updateGeometry()
 
 
 def _populate_axis_grid_horizontal(
@@ -805,7 +837,9 @@ def _populate_axis_grid_horizontal(
             grid.setColumnMinimumWidth(c, 0)
         grid.setColumnStretch(c, 0)
     grid.setColumnStretch(starting_col - 2, 1)
-    grid.parentWidget().updateGeometry()
+    parent = grid.parentWidget()
+    if parent is not None:
+        parent.updateGeometry()
 
 
 def _add_horizontal_separator(
