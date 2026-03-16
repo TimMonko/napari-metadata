@@ -330,6 +330,18 @@ class TestGetLayerSourceMetadata:
         assert 'sample' not in metadata
         assert metadata['path'] == '/test.tif'
 
+    def test_layer_with_parent(self, viewer_model):
+        from napari.layers._source import Source
+
+        layer = viewer_model.add_image(np.zeros((4, 3)))
+        parent_layer = viewer_model.add_image(np.zeros((4, 3)))
+        layer._source = Source(parent=parent_layer)
+        metadata = get_layer_source_metadata(layer)
+        assert 'parent' in metadata
+        # Parent is stored as a weakref, so just check it exists as a string
+        assert isinstance(metadata['parent'], str)
+        assert len(metadata['parent']) > 0
+
 
 class TestGetLayerDimensions:
     def test_none_layer(self):
