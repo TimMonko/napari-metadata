@@ -16,8 +16,9 @@ old ``get_entries_dict`` API.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 from qtpy.QtCore import Qt
 from qtpy.QtWidgets import QCheckBox, QLabel, QWidget
@@ -31,6 +32,17 @@ from napari_metadata.layer_utils import (
 if TYPE_CHECKING:
     from napari.layers import Layer
     from napari.viewer import ViewerModel
+
+
+_QWidgetT = TypeVar('_QWidgetT', bound=QWidget, covariant=True)
+
+
+class _ClearableWidgetCollection(Protocol[_QWidgetT]):
+    """Minimal widget collection interface needed for cleanup."""
+
+    def __iter__(self) -> Iterator[_QWidgetT]: ...
+
+    def clear(self) -> None: ...
 
 
 @dataclass
@@ -86,7 +98,9 @@ class ComponentBase(ABC):
 
         self._component_qlabel = QLabel(self._label_text, parent=parent_widget)
         self._component_qlabel.setStyleSheet('font-weight: bold')
-        self._component_qlabel.setAlignment(Qt.AlignmentFlag.AlignLeft)
+        self._component_qlabel.setAlignment(
+            Qt.AlignmentFlag.AlignLeft
+        )  # this seems to do nothing
         self._component_qlabel.setToolTip(self._tooltip_text)
 
     @property
@@ -242,7 +256,7 @@ class AxisComponentBase(ComponentBase):
     # Internal helpers
     # ------------------------------------------------------------------
 
-    def _all_widget_lists(self) -> list[list[QWidget]]:
+    def _all_widget_lists(self) -> list[_ClearableWidgetCollection[QWidget]]:
         """Return all per-axis widget lists for cleanup.
 
         Subclasses override to include their own lists (spinboxes, etc.)
