@@ -122,36 +122,6 @@ class TestLayerName:
         assert component._line_edit.text() == ''
 
 
-class TestSourceAttributeDisplayText:
-    """Tests for _SourceAttributeComponent._get_display_text."""
-
-    def test_returns_string_when_attribute_is_not_none(
-        self, parent_widget: QWidget
-    ):
-        from unittest.mock import MagicMock
-
-        component = SourceReaderPlugin(parent_widget)
-        mock_layer = MagicMock()
-        mock_layer.source.reader_plugin = 'test-plugin'
-
-        text = component._get_display_text(mock_layer)
-
-        assert text == 'test-plugin'
-
-    def test_returns_empty_string_when_attribute_is_none(
-        self, parent_widget: QWidget
-    ):
-        from unittest.mock import MagicMock
-
-        component = SourceReaderPlugin(parent_widget)
-        mock_layer = MagicMock()
-        mock_layer.source.reader_plugin = None
-
-        text = component._get_display_text(mock_layer)
-
-        assert text == ''
-
-
 class TestSourcePath:
     def test_under_label_in_vertical_is_true(self):
         assert SourcePath._under_label_in_vertical is True
@@ -161,7 +131,7 @@ class TestSourcePath:
 
         component.clear()
 
-        assert component.value_widget.text() == 'None selected'
+        assert component.value_widget.text() == ''
 
     def test_line_edit_is_read_only(self, parent_widget: QWidget):
         component = SourcePath(parent_widget)
@@ -178,15 +148,6 @@ class TestSourcePath:
 
         # Layers created programmatically have no source path
         assert component.value_widget.text() == ''
-
-    def test_set_display_value_updates_path_line_edit(
-        self, parent_widget: QWidget
-    ):
-        component = SourcePath(parent_widget)
-
-        component._set_display_value('/path/to/file.tif')
-
-        assert component._path_line_edit.text() == '/path/to/file.tif'
 
 
 class TestFileGeneralMetadata:
