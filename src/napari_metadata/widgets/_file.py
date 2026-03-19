@@ -23,7 +23,6 @@ from napari_metadata.file_size import generate_display_size
 from napari_metadata.layer_utils import (
     get_layer_data_dtype,
     get_layer_data_shape,
-    get_layer_source_path,
 )
 from napari_metadata.widgets._base import FileComponentBase
 
@@ -135,7 +134,7 @@ class SourcePath(FileComponentBase):
         return self._path_line_edit
 
     def _get_display_text(self, layer: Layer) -> str:
-        return str(get_layer_source_path(layer))
+        return '' if layer.source.path is None else str(layer.source.path)
 
     def _update_display(self, layer: Layer) -> None:
         self._path_line_edit.setText(self._get_display_text(layer))
