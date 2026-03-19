@@ -166,7 +166,7 @@ class TestFileGeneralMetadata:
         components = meta.components
         components.clear()
 
-        assert len(meta.components) == 5
+        assert len(meta.components) == 9
 
     def test_all_components_load_entries(self, parent_widget: QWidget):
         layer = Image(np.zeros((4, 3), dtype=np.uint8), name='test')
