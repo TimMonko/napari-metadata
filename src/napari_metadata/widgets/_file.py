@@ -61,7 +61,7 @@ class LayerName(FileComponentBase):
 
     def clear(self) -> None:
         self._selected_layer = None
-        self._line_edit.setText('None selected')
+        self._line_edit.setText('')
 
     def _get_display_text(self, layer: Layer) -> str:
         return layer.name
@@ -140,7 +140,7 @@ class SourcePath(FileComponentBase):
         self._path_line_edit.setText(self._get_display_text(layer))
 
     def clear(self) -> None:
-        self._path_line_edit.setText('None selected')
+        self._path_line_edit.setText('')
 
 
 class FileGeneralMetadata:
