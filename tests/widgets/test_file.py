@@ -78,7 +78,7 @@ class TestLayerName:
     def test_editing_name_renames_layer(self, parent_widget: QWidget):
         layer = Image(np.zeros((4, 3)), name='original')
         component = LayerName(parent_widget)
-        component.load_entries(layer)
+        component.bind_layer(layer)
 
         component._line_edit.setText('renamed')
         component._line_edit.editingFinished.emit()
@@ -88,7 +88,7 @@ class TestLayerName:
     def test_editing_same_name_is_noop(self, parent_widget: QWidget):
         layer = Image(np.zeros((4, 3)), name='keep')
         component = LayerName(parent_widget)
-        component.load_entries(layer)
+        component.bind_layer(layer)
 
         component._line_edit.setText('keep')
         component._line_edit.editingFinished.emit()
@@ -98,7 +98,7 @@ class TestLayerName:
     def test_clear_clears_text(self, parent_widget: QWidget):
         layer = Image(np.zeros((4, 3)), name='test')
         component = LayerName(parent_widget)
-        component.load_entries(layer)
+        component.bind_layer(layer)
         assert component._selected_layer is layer
 
         component.clear()
@@ -109,7 +109,7 @@ class TestLayerName:
     def test_clear_ignores_late_editing_finished(self, parent_widget: QWidget):
         layer = Image(np.zeros((4, 3)), name='original')
         component = LayerName(parent_widget)
-        component.load_entries(layer)
+        component.bind_layer(layer)
 
         component._line_edit.setText('edited')
         component.clear()
@@ -188,9 +188,7 @@ class TestFileEventDriven:
     ):
         layer = Image(np.zeros((4, 3)), name='original')
         file_meta = FileGeneralMetadata(parent_widget)
-        for component in file_meta.components:
-            component.load_entries(layer)
-        file_meta.connect_layer_events(layer)
+        file_meta.bind_layer(layer)
 
         layer.name = 'renamed'
 
@@ -199,9 +197,7 @@ class TestFileEventDriven:
     def test_data_event_updates_shape_widget(self, parent_widget: QWidget):
         layer = Image(np.zeros((4, 3), dtype=np.uint8), name='test')
         file_meta = FileGeneralMetadata(parent_widget)
-        for component in file_meta.components:
-            component.load_entries(layer)
-        file_meta.connect_layer_events(layer)
+        file_meta.bind_layer(layer)
 
         layer.data = np.zeros((6, 5), dtype=np.uint8)
 
@@ -210,9 +206,7 @@ class TestFileEventDriven:
     def test_data_event_updates_dtype_widget(self, parent_widget: QWidget):
         layer = Image(np.zeros((4, 3), dtype=np.uint8))
         file_meta = FileGeneralMetadata(parent_widget)
-        for component in file_meta.components:
-            component.load_entries(layer)
-        file_meta.connect_layer_events(layer)
+        file_meta.bind_layer(layer)
 
         layer.data = np.zeros((4, 3), dtype=np.float32)
 
@@ -224,23 +218,21 @@ class TestFileEventDriven:
         """SourcePath is excluded from data-change refresh (immutable after creation)."""
         layer = Image(np.zeros((4, 3)), name='test')
         file_meta = FileGeneralMetadata(parent_widget)
-        for component in file_meta.components:
-            component.load_entries(layer)
-        file_meta.connect_layer_events(layer)
+        file_meta.bind_layer(layer)
         initial_path = file_meta._source_path.value_widget.text()
 
         layer.data = np.zeros((6, 5))
 
         assert file_meta._source_path.value_widget.text() == initial_path
 
-    def test_disconnect_stops_name_updates(self, parent_widget: QWidget):
+    def test_unbind_clears_display_and_stops_name_updates(
+        self, parent_widget: QWidget
+    ):
         layer = Image(np.zeros((4, 3)), name='first')
         file_meta = FileGeneralMetadata(parent_widget)
-        for component in file_meta.components:
-            component.load_entries(layer)
-        file_meta.connect_layer_events(layer)
-        file_meta.disconnect_layer_events(layer)
+        file_meta.bind_layer(layer)
+        file_meta.unbind_layer()
 
         layer.name = 'second'
 
-        assert file_meta._layer_name.value_widget.text() == 'first'
+        assert file_meta._layer_name.value_widget.text() == ''
