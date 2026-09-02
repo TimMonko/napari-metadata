@@ -134,7 +134,19 @@ class MetadataWidget(QWidget):
     # Event handling
     # ------------------------------------------------------------------
 
+    def _restore_dock_size_policy(self) -> None:
+        """Undo napari 0.9.0's dock-widget size-policy clamp (napari #9393).
+
+        Can be removed once napari/napari#9462 is released.
+        """
+        if self.sizePolicy().verticalPolicy() == QSizePolicy.Policy.Maximum:
+            self.setSizePolicy(
+                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
+            )
+
     def showEvent(self, a0: QShowEvent | None) -> None:
+        self._restore_dock_size_policy()
+
         if self._already_shown:
             return
 
