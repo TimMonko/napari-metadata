@@ -22,6 +22,7 @@ from napari_metadata.widgets._containers import (
     HorizontalOnlyOuterScrollArea,
     Orientation,
 )
+from napari_metadata.widgets._dock_size_policy import restore_dock_size_policy
 
 if TYPE_CHECKING:
     from napari.components import ViewerModel
@@ -63,18 +64,9 @@ class ViewerMetadataWidget(QWidget):
 
         self._rebuild_content(self._get_required_orientation())
 
-    def _restore_dock_size_policy(self) -> None:
-        """Undo napari 0.9.0's dock-widget size-policy clamp (napari #9393).
-
-        Can be removed once napari/napari#9462 is released.
-        """
-        if self.sizePolicy().verticalPolicy() == QSizePolicy.Policy.Maximum:
-            self.setSizePolicy(
-                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding
-            )
-
     def showEvent(self, event: QShowEvent | None) -> None:
-        self._restore_dock_size_policy()
+        # undo napari 0.9.0's (Preferred, Maximum) dock clamp
+        restore_dock_size_policy(self)
 
         if self._already_shown:
             return
