@@ -48,12 +48,15 @@ dynamic = ["version"]
 napari-metadata = "napari_metadata:napari.yaml"
 
 [dependency-groups]
-dev = [
+test = [
     "napari[qt]",
     "npe2",
-    "pytest",
-    "coverage>7",
-    "pytest-qt",
+    "pytest>=8.0",
+    "pytest-qt>=4.4",
+    "coverage>=7.0",
+]
+dev = [
+    {include-group = "test"},
     "tox-uv",
     "prek",
 ]
